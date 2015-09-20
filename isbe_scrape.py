@@ -5,6 +5,15 @@ from decimal import Decimal
 import feedparser
 import urlparse
 from address import AddressParser
+import sqlite3
+import os
+import smtplib
+from email.mime.text import MIMEText
+
+
+# Info for sqlite database
+sqlite_file = 'd1.sqlite'    # name of the sqlite database file
+table_name = 'filings'  # name of the table to be created
 
 # URL formats for ISBE report sections
 D2_MAIN_PAGE = ('http://elections.state.il.us/CampaignDisclosure/D2Quarterly.'
@@ -30,7 +39,8 @@ def scrape_reports_filed(reports_url=ISBE_REPORTS_FEED):
     feed = feedparser.parse(reports_url)
     reports_list = []
     for f in feed['entries']:
-        report_date = f['summary'].split('<br />')[2].split(' ')[0]
+        report_date = f['published']
+        report_summary = f['summary']
         if 'href' not in f['links'][0]:
             continue
         report_url = f['links'][0]['href']
@@ -38,7 +48,10 @@ def scrape_reports_filed(reports_url=ISBE_REPORTS_FEED):
         if report_url.startswith(
             'http://www.elections.il.gov/CampaignDisclosure/CDPdfViewer'
                 '.aspx'):
-            report_type = 'PDF'
+            if 'D-1' in report_summary:
+                report_type = 'D1'
+            else:
+                report_type = 'PDF'
             report_id = parsed_url['FiledDocID'][0]
         elif report_url.startswith(
                 'http://www.elections.il.gov/CampaignDisclosure/D2'):
@@ -55,7 +68,9 @@ def scrape_reports_filed(reports_url=ISBE_REPORTS_FEED):
             'report_id': report_id,
             'report_type': report_type,
             'report_url': report_url,
-            'report_date': report_date
+            'report_date': report_date,
+            'report_summary': report_summary,
+            'report_committee': f['title']
         })
     return reports_list
 
@@ -387,11 +402,77 @@ def _clean_a1_address(address_str):
     return address_str[2:]
 
 
+# sets up a new sqlite database with the fields defined in report
+def create_db_if_not_exist(db):
+    if os.path.isfile(db):
+        pass
+    else:
+        conn = sqlite3.connect(db)
+        c = conn.cursor()
+        c.execute('''CREATE TABLE filings
+             (id text PRIMARY KEY, type text, url text UNIQUE, date text, summary text, committee text)''')
+        conn.commit()
+        conn.close()
+
+# gets info on new d1 reports and sends an email notification
+def _process_d1_reports(new_db=False):
+    if new_db == True:
+        os.remove(sqlite_file)
+
+    create_db_if_not_exist(sqlite_file)
+    conn = sqlite3.connect(sqlite_file)
+    
+    c = conn.cursor()
+    reports = scrape_reports_filed()
+    print len(reports)
+    for report in reports:
+        val = list(report.values())
+        if (report['report_type'] == 'D1'):
+            c.execute('SELECT * FROM filings WHERE id=?', (report['report_id'],))
+            if c.fetchone() == None:
+                c.execute("INSERT OR IGNORE INTO filings VALUES (?,?,?,?,?,?)", val)
+                conn.commit()
+                send_email(report)
+
+    c.execute("SELECT COUNT(*) FROM filings")
+    print c.fetchone()
+    conn.close()
+    
+# send an email with info from a report dictionary
+def send_email(report):
+    sender = os.environ.get('APPS_GOOGLE_EMAIL')
+    pw = os.environ.get('APPS_GOOGLE_PASS')
+    server = smtplib.SMTP('smtp.gmail.com:587')
+    server.ehlo()
+    server.starttls()
+    server.login(sender,pw)
+    # if more than one receiver, set up as a list and then join into a string for msg
+    receivers = 'chrishagan23@gmail.com'
+
+    message = """
+    {report_summary}
+    {report_url}
+    """.format(**report)
+
+    msg = MIMEText(message)
+    msg['Subject'] = "New D-1: %s" % report['report_committee']
+    msg['From'] = sender
+    msg['To'] = receivers
+    try:
+       server.sendmail(sender, receivers, msg.as_string())         
+       print "Successfully sent email"
+    except smtplib.SMTPException:
+       print "Error: unable to send email"
+            
+
 if __name__ == "__main__":
-    print 'Looking for recent reports, and printing out details of A1s:'
-    for report in scrape_reports_filed():
-        if report['report_type'] == 'A1':
-            print scrape_a1(
-                report['report_id'],
-                report['report_url'],
-                report['report_date'])
+    _process_d1_reports(new_db=False)
+
+    # print 'Looking for recent reports, and printing out details of A1s:'
+    # for report in scrape_reports_filed():
+    #     if (report['report_type'] == 'D1'):
+    #         # print scrape_a1(
+    #         #     report['report_id'],
+    #         #     report['report_url'],
+    #         #     report['report_date'])
+    #         print report['report_committee'], report['report_date']
