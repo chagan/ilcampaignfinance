@@ -61,6 +61,10 @@ def scrape_reports_filed(reports_url=ISBE_REPORTS_FEED):
                 'http://www.elections.il.gov/CampaignDisclosure/A1'):
             report_type = 'A1'
             report_id = parsed_url['FiledDocID'][0]
+        elif report_url.startswith(
+                'http://www.elections.il.gov/CampaignDisclosure/B1'):
+            report_type = 'B1'
+            report_id = parsed_url['FiledDocID'][0]
         else:
             report_type = 'UNK'  # Unknown/unhandled report type
             report_id = -1
@@ -457,7 +461,8 @@ def committee_search(new_db=False):
         if (report['report_committee'] in committees):
             c.execute('SELECT * FROM filings WHERE id=?', (report['report_id'],))
             if c.fetchone() == None:
-                c.execute("INSERT OR IGNORE INTO filings VALUES (?,?,?,?,?,?)", val)
+                # (id text PRIMARY KEY, type text, url text UNIQUE, date text, summary text, committee text)
+                c.execute("INSERT OR IGNORE INTO filings (committee,date,url,type,summary,id) VALUES (?,?,?,?,?,?)", val)
                 conn.commit()
                 send_email(report)
 
