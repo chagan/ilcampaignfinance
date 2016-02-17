@@ -480,7 +480,7 @@ def send_email(report):
     server.login(sender,pw)
     # if more than one receiver, set up as a list and then join into a string for msg
     COMMASPACE = ', '
-    receivers_list = ['chagan@wbez.org','dweissmann@wbez.org']
+    receivers_list = ['chagan@wbez.org']
     receivers = COMMASPACE.join(receivers_list)
 
     message = """
