@@ -12,7 +12,7 @@ from email.mime.text import MIMEText
 
 
 # Info for sqlite database
-sqlite_file = 'd1.sqlite'    # name of the sqlite database file
+sqlite_file = 'ilcampaignfinance.sqlite'    # name of the sqlite database file
 table_name = 'filings'  # name of the table to be created
 
 # URL formats for ISBE report sections
@@ -437,18 +437,45 @@ def _process_d1_reports(new_db=False):
     c.execute("SELECT COUNT(*) FROM filings")
     print c.fetchone()
     conn.close()
+
+
+# gets info on specific committees and sends an email notification
+def committee_search(new_db=False):
+    if new_db == True:
+        os.remove(sqlite_file)
+
+    create_db_if_not_exist(sqlite_file)
+    conn = sqlite3.connect(sqlite_file)
+    
+    c = conn.cursor()
+    reports = scrape_reports_filed()
+    print len(reports)
+
+    committees = ['Friends of Juliana Stratton','Friends of Ken Dunkin','IllinoisGO IE','Liberty Principles PAC','Turnaround Illinois','Citizens for Rauner, Inc']
+    for report in reports:
+        val = list(report.values())
+        if (report['report_committee'] in committees):
+            c.execute('SELECT * FROM filings WHERE id=?', (report['report_id'],))
+            if c.fetchone() == None:
+                c.execute("INSERT OR IGNORE INTO filings VALUES (?,?,?,?,?,?)", val)
+                conn.commit()
+                send_email(report)
+
+    c.execute("SELECT COUNT(*) FROM filings")
+    print c.fetchone()
+    conn.close()
     
 # send an email with info from a report dictionary
 def send_email(report):
-    sender = os.environ.get('APPS_GOOGLE_EMAIL')
-    pw = os.environ.get('APPS_GOOGLE_PASS')
+    sender = os.environ.get('CAMPAIGN_CASH_GOOGLE_EMAIL')
+    pw = os.environ.get('CAMPAIGN_CASH_GOOGLE_PASS')
     server = smtplib.SMTP('smtp.gmail.com:587')
-    server.ehlo()
     server.starttls()
+    server.ehlo()
     server.login(sender,pw)
     # if more than one receiver, set up as a list and then join into a string for msg
     COMMASPACE = ', '
-    receivers_list = ['chagan@wbez.org']
+    receivers_list = ['chagan@wbez.org','dweissmann@wbez.org']
     receivers = COMMASPACE.join(receivers_list)
 
     message = """
@@ -457,7 +484,7 @@ def send_email(report):
     """.format(**report)
 
     msg = MIMEText(message)
-    msg['Subject'] = "New D-1: %s" % report['report_committee']
+    msg['Subject'] = "New %s: %s" % (report['report_type'], report['report_committee'])
     msg['From'] = sender
     msg['To'] = receivers
     try:
@@ -468,7 +495,7 @@ def send_email(report):
             
 
 if __name__ == "__main__":
-    _process_d1_reports(new_db=False)
+    committee_search(new_db=False)
 
     # print 'Looking for recent reports, and printing out details of A1s:'
     # for report in scrape_reports_filed():
