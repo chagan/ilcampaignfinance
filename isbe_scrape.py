@@ -12,7 +12,7 @@ from email.mime.text import MIMEText
 
 
 # Info for sqlite database
-sqlite_file = 'ilcampaignfinance.sqlite'    # name of the sqlite database file
+sqlite_file = '/srv/isbe/ilcampaignfinance.sqlite'    # name of the sqlite database file
 table_name = 'filings'  # name of the table to be created
 
 # URL formats for ISBE report sections
