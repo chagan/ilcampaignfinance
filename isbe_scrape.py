@@ -493,7 +493,7 @@ def send_email(report):
     msg['From'] = sender
     msg['To'] = receivers
     try:
-       server.sendmail(sender, receivers, msg.as_string())         
+       server.sendmail(sender, receivers_list, msg.as_string())         
        print "Successfully sent email"
     except smtplib.SMTPException:
        print "Error: unable to send email"
