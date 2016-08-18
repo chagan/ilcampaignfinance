@@ -9,7 +9,7 @@ import sqlite3
 import os
 import smtplib
 from email.mime.text import MIMEText
-
+stratton_list = "http://www.elections.il.gov/CampaignDisclosure/ContributionsSearchByCommittees.aspx?ddlCmteContributionType=All+Types&ddlCmteLastOnlyNameSearchType=Starts+with&txtCmteLastOnlyName=&ddlCmteFirstNameSearchType=Starts+with&txtCmteFirstName=&ddlCmteAddressSearchType=Starts+with&txtCmteAddress=&ddlCmteCitySearchType=Starts+with&txtCmteCity=&ddlState=&txtCmteZip=&txtCmteZipThru=&ddlCmteOccupationSearchType=Starts+with&txtCmteOccupation=&ddlCmteEmployerSearchType=Starts+with&txtCmteEmployer=&txtCmteAmount=&txtCmteAmountThru=&txtCmteRcvDate=&txtCmteRcvDateThru=&ddlCmteOrderBy=Last+or+Only+Name+-+A+to+Z&ddlCmteNameSearchType=Contains&txtCmteName=Stratton&txtCmteID=&txtCmteLocalID=&txtCmteStateID=&ddlVendorLastOnlyName=Starts+with&txtVendorLastOnlyName=&ddlVendorFirstName=Starts+with&txtVendorFirstName=&ddlVendorAddress=Starts+with&txtVendorAddress=&ddlVendorCity=Starts+with&txtVendorCity=&ddlVendorState=&txtVendorZip=&txtVendorZipThru=&ddlPurpose=Starts+with&txtPurpose=&ddlOtherReceipts=Starts+with&txtOtherReceipts="
 
 # Info for sqlite database
 sqlite_file = '/srv/isbe/ilcampaignfinance.sqlite'    # name of the sqlite database file
@@ -28,7 +28,7 @@ TRANSFER_IN = ('http://www.elections.il.gov/CampaignDisclosure/ItemizedContrib'
                'ly+Name+-+A+to+Z')
 
 # ISBE Recently-filed reports
-ISBE_REPORTS_FEED = 'http://elections.state.il.us/rss/SBEReportsFiledWire.aspx'
+ISBE_REPORTS_FEED = 'https://www.elections.il.gov/rss/SBEReportsFiledWire.aspx'
 
 
 # Scraper for the Reports Filed list
