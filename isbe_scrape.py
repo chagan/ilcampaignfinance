@@ -13,6 +13,7 @@ stratton_list = "http://www.elections.il.gov/CampaignDisclosure/ContributionsSea
 
 # Info for sqlite database
 sqlite_file = '/srv/isbe/ilcampaignfinance.sqlite'    # name of the sqlite database file
+# sqlite_file = 'ilcampaignfinance.sqlite'
 table_name = 'filings'  # name of the table to be created
 
 # URL formats for ISBE report sections
@@ -134,8 +135,14 @@ def _process_a1_page(soups, url, report_id, report_date):
     """
     report_contribs = []
     name = soups[0].findAll('span', id='ctl00_ContentPlaceHolder1_lblName')
-    if name:
-        cmte_name = name[0].contents[0]
+    donor_address_str = ''
+    
+    if name: 
+        try:
+            cmte_name = name[0].contents[0]
+        except IndexError:
+            cmte_name = 'null'
+
     cmte_id = None
     for f in soups[0].findAll('td', 'tdA1List'):
         if f['headers'] == 'ctl00_ContentPlaceHolder1_thRecievedBy':
@@ -455,10 +462,26 @@ def committee_search(new_db=False):
     reports = scrape_reports_filed()
     print len(reports)
 
-    committees = ['Friends of Juliana Stratton','Friends of Ken Dunkin','IllinoisGO IE','Liberty Principles PAC','Turnaround Illinois','Citizens for Rauner, Inc']
+    committees = ['Friends of Juliana Stratton','Friends of Ken Dunkin','IllinoisGO IE','Liberty Principles PAC','Turnaround Illinois','Citizens for Rauner, Inc','Citizens for Leslie Munger', 'Citizens for Durkin']
     for report in reports:
         val = list(report.values())
-        if (report['report_committee'] in committees):
+        if (report['report_type'] == 'A1'):
+            a1 = scrape_a1(report['report_id'], report['report_url'], report['report_date'])
+            if a1 is not None:
+                donors = [d['parsed_firstname'] for d in a1['contribs']]
+
+                for donor in donors:
+                    for name in ['Munger', 'Durkin']:
+                        if name in donor:
+                            print "new donor: %s" % donor
+                            c.execute('SELECT * FROM filings WHERE id=?', (report['report_id'],))
+                            if c.fetchone() == None:
+                                # (id text PRIMARY KEY, type text, url text UNIQUE, date text, summary text, committee text)
+                                c.execute("INSERT OR IGNORE INTO filings (committee,date,url,type,summary,id) VALUES (?,?,?,?,?,?)", val)
+                                conn.commit()
+                                send_email(report)
+
+        elif (report['report_committee'] in committees):
             c.execute('SELECT * FROM filings WHERE id=?', (report['report_id'],))
             if c.fetchone() == None:
                 # (id text PRIMARY KEY, type text, url text UNIQUE, date text, summary text, committee text)
@@ -480,7 +503,7 @@ def send_email(report):
     server.login(sender,pw)
     # if more than one receiver, set up as a list and then join into a string for msg
     COMMASPACE = ', '
-    receivers_list = ['dweissmann@wbez.org','chagan@wbez.org']
+    receivers_list = ['chagan@wbez.org']
     receivers = COMMASPACE.join(receivers_list)
 
     message = """
