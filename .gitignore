@@ -1,3 +1,4 @@
 Dan Weissmann notes
 *.sqlite
 .DS_Store
+isbe_log.txt
